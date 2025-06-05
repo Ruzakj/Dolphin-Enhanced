@@ -340,12 +340,12 @@ bool Renderer::CalculateTargetSize()
   return false;
 }
 
-void Renderer::SaveScreenshot(const std::string& filename, bool wait_for_completion)
+void Renderer::SaveScreenshot(std::string filename, bool wait_for_completion)
 {
   // We must not hold the lock while waiting for the screenshot to complete.
   {
     std::lock_guard<std::mutex> lk(m_screenshot_lock);
-    m_screenshot_name = filename;
+    m_screenshot_name = std::move(filename);
     m_screenshot_request.Set();
   }
 
