@@ -25,3 +25,5 @@
 # Contributing
 
 [Pull Requests](https://github.com/Gamer64ytb/Dolphin-Enhanced/pulls) with fixes or improvements are always welcome.
+
+<!-- CI trigger for Ric Wii controller build -->
