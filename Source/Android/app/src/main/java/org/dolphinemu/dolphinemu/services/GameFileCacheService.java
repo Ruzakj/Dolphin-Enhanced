@@ -45,7 +45,11 @@ public final class GameFileCacheService extends IntentService
         return game;
       }
     }
-    return null;
+
+    // External launchers intentionally don't add AutoStartFile ROMs to Dolphin's
+    // library cache. Parse the file directly so EmulationActivity still receives
+    // the real game ID/platform and can expose the correct Wii controller menu.
+    return GameFile.parse(path);
   }
 
   public static String[] getAllDiscPaths(GameFile game)
