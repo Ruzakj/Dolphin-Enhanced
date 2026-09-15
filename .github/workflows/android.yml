@@ -1,4 +1,4 @@
-name: CI
+name: CI - Ric Wii Controller Fix
 
 on:
   workflow_dispatch:
@@ -24,8 +24,9 @@ jobs:
 
       - name: Install Ninja Build
         run: |
+          sudo apt-get update
           sudo apt-get install -y ninja-build
-          ln -s /usr/bin/ninja .
+          ln -sf /usr/bin/ninja ./ninja
 
       - name: Build
         run: |
@@ -36,5 +37,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release.apk
+          name: Dolphin-Enhanced-Ric-Wii-Controller
           path: ./Source/Android/app/build/outputs/apk/release/app-release.apk
