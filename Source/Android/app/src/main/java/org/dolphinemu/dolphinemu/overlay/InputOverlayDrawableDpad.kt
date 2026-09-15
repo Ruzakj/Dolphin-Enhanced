@@ -6,9 +6,14 @@
 package org.dolphinemu.dolphinemu.overlay
 
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.Rect
+import android.graphics.RectF
+import android.graphics.Typeface
 import android.graphics.drawable.BitmapDrawable
 import org.dolphinemu.dolphinemu.NativeLibrary
+import kotlin.math.min
 
 class InputOverlayDrawableDpad
     (
@@ -20,7 +25,6 @@ class InputOverlayDrawableDpad
     buttonLeft: Int,
     buttonRight: Int
 ) {
-    // The ID identifying what type of button this Drawable represents.
     private val buttonIds = IntArray(4)
     private val pressStates = BooleanArray(4)
     var pointerId: Int
@@ -30,73 +34,66 @@ class InputOverlayDrawableDpad
     private var controlPositionX = 0
     private var controlPositionY = 0
 
+    private val basePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val pressedPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val arrowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
+
     init {
         pointerId = -1
-
         buttonIds[0] = buttonUp
         buttonIds[1] = buttonDown
         buttonIds[2] = buttonLeft
         buttonIds[3] = buttonRight
-
-        pressStates[0] = false
-        pressStates[1] = false
-        pressStates[2] = false
-        pressStates[3] = false
     }
 
     fun onDraw(canvas: Canvas) {
-        val bounds = bounds
-        val px = controlPositionX + (bounds.width() / 2)
-        val py = controlPositionY + (bounds.height() / 2)
+        val b = bounds
+        if (b.width() <= 0 || b.height() <= 0) return
 
-        val up = pressStates[0]
-        val down = pressStates[1]
-        val left = pressStates[2]
-        val right = pressStates[3]
+        val alpha = defaultStateBitmap.alpha.coerceIn(0, 255)
+        val size = min(b.width(), b.height()).toFloat()
+        val arm = size * 0.34f
+        val cx = b.exactCenterX()
+        val cy = b.exactCenterY()
+        val half = size * 0.48f
+        val corner = arm * 0.24f
 
-        if (up) {
-            if (left) pressedTwoDirectionsStateBitmap.draw(canvas)
-            else if (right) {
-                canvas.save()
-                canvas.rotate(90f, px.toFloat(), py.toFloat())
-                pressedTwoDirectionsStateBitmap.draw(canvas)
-                canvas.restore()
-            } else pressedOneDirectionStateBitmap.draw(canvas)
-        } else if (down) {
-            if (left) {
-                canvas.save()
-                canvas.rotate(270f, px.toFloat(), py.toFloat())
-                pressedTwoDirectionsStateBitmap.draw(canvas)
-                canvas.restore()
-            } else if (right) {
-                canvas.save()
-                canvas.rotate(180f, px.toFloat(), py.toFloat())
-                pressedTwoDirectionsStateBitmap.draw(canvas)
-                canvas.restore()
-            } else {
-                canvas.save()
-                canvas.rotate(180f, px.toFloat(), py.toFloat())
-                pressedOneDirectionStateBitmap.draw(canvas)
-                canvas.restore()
-            }
-        } else if (left) {
-            canvas.save()
-            canvas.rotate(270f, px.toFloat(), py.toFloat())
-            pressedOneDirectionStateBitmap.draw(canvas)
-            canvas.restore()
-        } else if (right) {
-            canvas.save()
-            canvas.rotate(90f, px.toFloat(), py.toFloat())
-            pressedOneDirectionStateBitmap.draw(canvas)
-            canvas.restore()
-        } else {
-            defaultStateBitmap.draw(canvas)
-        }
+        basePaint.color = Color.rgb(22, 25, 30)
+        basePaint.alpha = (alpha * 0.66f).toInt()
+        pressedPaint.color = Color.rgb(66, 112, 148)
+        pressedPaint.alpha = (alpha * 0.90f).toInt()
+        strokePaint.color = Color.WHITE
+        strokePaint.alpha = (alpha * 0.58f).toInt()
+        strokePaint.strokeWidth = (size * 0.022f).coerceAtLeast(1.5f)
+
+        val vertical = RectF(cx - arm / 2f, cy - half, cx + arm / 2f, cy + half)
+        val horizontal = RectF(cx - half, cy - arm / 2f, cx + half, cy + arm / 2f)
+        canvas.drawRoundRect(vertical, corner, corner, basePaint)
+        canvas.drawRoundRect(horizontal, corner, corner, basePaint)
+        canvas.drawRoundRect(vertical, corner, corner, strokePaint)
+        canvas.drawRoundRect(horizontal, corner, corner, strokePaint)
+
+        if (pressStates[0]) canvas.drawRoundRect(RectF(cx - arm / 2f, cy - half, cx + arm / 2f, cy), corner, corner, pressedPaint)
+        if (pressStates[1]) canvas.drawRoundRect(RectF(cx - arm / 2f, cy, cx + arm / 2f, cy + half), corner, corner, pressedPaint)
+        if (pressStates[2]) canvas.drawRoundRect(RectF(cx - half, cy - arm / 2f, cx, cy + arm / 2f), corner, corner, pressedPaint)
+        if (pressStates[3]) canvas.drawRoundRect(RectF(cx, cy - arm / 2f, cx + half, cy + arm / 2f), corner, corner, pressedPaint)
+
+        arrowPaint.color = Color.WHITE
+        arrowPaint.alpha = (alpha * 0.86f).toInt()
+        arrowPaint.textSize = size * 0.15f
+        val fm = arrowPaint.fontMetrics
+        val baselineAdjust = -(fm.ascent + fm.descent) / 2f
+        canvas.drawText("▲", cx, cy - size * 0.29f + baselineAdjust, arrowPaint)
+        canvas.drawText("▼", cx, cy + size * 0.29f + baselineAdjust, arrowPaint)
+        canvas.drawText("◀", cx - size * 0.29f, cy + baselineAdjust, arrowPaint)
+        canvas.drawText("▶", cx + size * 0.29f, cy + baselineAdjust, arrowPaint)
     }
 
-    fun getButtonId(direction: Int): Int {
-        return buttonIds[direction]
-    }
+    fun getButtonId(direction: Int): Int = buttonIds[direction]
 
     fun onConfigureBegin(x: Int, y: Int) {
         previousTouchX = x
@@ -149,12 +146,9 @@ class InputOverlayDrawableDpad
     }
 
     private fun setDpadState(pointerX: Int, pointerY: Int) {
-        // Up, Down, Left, Right
         val pressed = booleanArrayOf(false, false, false, false)
-
         if (pointerId != -1) {
             val bounds = bounds
-
             if (bounds.top + (bounds.height() / 3) > pointerY) pressed[0] = true
             else if (bounds.bottom - (bounds.height() / 3) < pointerY) pressed[1] = true
             if (bounds.left + (bounds.width() / 3) > pointerX) pressed[2] = true
@@ -163,18 +157,14 @@ class InputOverlayDrawableDpad
 
         for (i in pressed.indices) {
             if (pressed[i] != pressStates[i]) {
-                NativeLibrary
-                    .onGamePadEvent(
-                        NativeLibrary.TouchScreenDevice,
-                        buttonIds[i],
-                        if (pressed[i]) NativeLibrary.ButtonState.PRESSED else NativeLibrary.ButtonState.RELEASED
-                    )
+                NativeLibrary.onGamePadEvent(
+                    NativeLibrary.TouchScreenDevice,
+                    buttonIds[i],
+                    if (pressed[i]) NativeLibrary.ButtonState.PRESSED else NativeLibrary.ButtonState.RELEASED
+                )
             }
         }
 
-        pressStates[0] = pressed[0]
-        pressStates[1] = pressed[1]
-        pressStates[2] = pressed[2]
-        pressStates[3] = pressed[3]
+        for (i in pressStates.indices) pressStates[i] = pressed[i]
     }
 }
